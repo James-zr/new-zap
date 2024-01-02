@@ -8,7 +8,7 @@
 ```go
 // 初始化
 InitLogger("LogFile/test.log", 1024, 5, 30, false)
-defer common.SugarLogger.Sync()
+defer SugarLogger.Sync()
 ```
 ## 安装
 
