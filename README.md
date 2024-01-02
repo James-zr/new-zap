@@ -9,7 +9,8 @@
 // 初始化
 InitLogger("LogFile/test.log", 1024, 5, 30, false)
 defer SugarLogger.Sync()
-SugarLogger.Info("这是一个测试用例")
+SugarLogger.Info("测试1")
+SugarLogger.Error("测试2")
 ```
 ## 安装
 
