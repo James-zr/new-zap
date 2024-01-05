@@ -124,7 +124,7 @@ func HttpLogger() gin.HandlerFunc {
 		logInfo := fmt.Sprintf(
 			"\nCLASS METHOD: %s"+
 				"\n请求地址: %s"+
-				"\n请求参数 : %s"+
+				"\n请求参数: %s"+
 				"\nHTTP METHOD: %s"+
 				"\nIP: %s"+
 				"\n响应数据: %s"+
