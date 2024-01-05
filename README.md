@@ -11,6 +11,10 @@ InitLogger("LogFile/test.log", 1024, 5, 30, false)
 defer SugarLogger.Sync()
 SugarLogger.Info("测试1")
 SugarLogger.Error("测试2")
+
+//使用请求日志
+route := gin.Default()
+r.Use(common.HttpLogger())
 ```
 ## 安装
 
