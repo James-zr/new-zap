@@ -14,7 +14,7 @@ SugarLogger.Error("测试2")
 
 //使用请求日志
 route := gin.Default()
-r.Use(common.HttpLogger())
+r.Use(HttpLogger())
 ```
 ## 安装
 
