@@ -1,4 +1,4 @@
-package common
+package zrLogger
 
 import (
 	"fmt"
