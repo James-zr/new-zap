@@ -6,15 +6,17 @@
 以下是一个简单的使用例子：
 
 ```go
-// 初始化
-InitLogger("LogFile/test.log", 1024, 5, 30, false)
-defer SugarLogger.Sync()
-SugarLogger.Info("测试1")
-SugarLogger.Error("测试2")
+func main() {
+  // 初始化
+  zrLogger.InitLogger("LogFile/test.log", 1024, 5, 30, false)
+  defer SugarLogger.Sync()
+  SugarLogger.Info("测试1")
+  SugarLogger.Error("测试2")
 
-//使用请求日志切面
-route := gin.Default()
-r.Use(HttpLogger())
+  //使用请求日志切面
+  route := gin.Default()
+  r.Use(zrLogger.HttpLogger())
+}
 ```
 ## 安装
 
