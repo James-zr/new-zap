@@ -1,11 +1,15 @@
 package zrLogger
 
 import (
+	"NAS/authentication/model"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -45,43 +49,6 @@ func getLogWriter(filename string, maxSize, maxBackups, maxAge int, compress boo
 	return zapcore.AddSync(lumberJackLogger)
 }
 
-
-//// HttpLogger 请求日志切面
-//func HttpLogger() gin.HandlerFunc {
-//	return func(c *gin.Context) {
-//		// 请求的前置处理
-//		start := time.Now()
-//		path := c.Request.URL.Path
-//
-//		// 处理请求
-//		c.Next()
-//
-//		// 请求的后置处理
-//		cost := time.Since(start)
-//		method := c.Request.Method
-//		reqBody := c.Request.Form
-//		clientIP := c.ClientIP()
-//
-//		// 构建日志信息字符串
-//		logInfo := fmt.Sprintf(
-//			"\n请求地址 : %s"+
-//				"\nHTTP METHOD : %s"+
-//				"\n请求参数 : %s"+
-//				"\nIP : %s"+
-//				"\n耗时 : %v",
-//			path, method, reqBody, clientIP, cost,
-//		)
-//
-//		// 使用SugarLogger记录日志信息
-//		SugarLogger.Info(
-//			"\n-------------------请求开始---------------------" +
-//			logInfo +
-//				"\n-------------------请求结束---------------------",
-//			)
-//	}
-//}
-
-
 // HttpLogger 请求日志切面
 func HttpLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -93,8 +60,16 @@ func HttpLogger() gin.HandlerFunc {
 		// 处理请求前记录时间
 		start := time.Now()
 
+		// 读取请求体
+		var bodyBytes []byte
+		if c.Request.Body != nil {
+			bodyBytes, _ = ioutil.ReadAll(c.Request.Body)
+		}
+		// 将读取过的请求体重新放入请求中
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 		// 创建响应记录器
-		recorder := NewResponseRecorder(c.Writer)
+		recorder := model.NewResponseRecorder(c.Writer)
 		c.Writer = recorder
 
 		// 处理请求
@@ -104,7 +79,7 @@ func HttpLogger() gin.HandlerFunc {
 		switch c.ContentType() { // 根据 Content-Type 选择合适的方式来获取请求参数
 		case "application/json":
 			var jsonMap map[string]interface{}
-			if err := c.ShouldBindJSON(&jsonMap); err == nil {
+			if err := json.Unmarshal(bodyBytes, &jsonMap); err == nil {
 				reqParams = jsonMap
 			}
 		case "application/x-www-form-urlencoded", "multipart/form-data":
