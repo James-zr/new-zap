@@ -14,7 +14,7 @@ func main() {
   SugarLogger.Error("测试2")
 
   //使用请求日志切面
-  route := gin.Default()
+  r := gin.Default()
   r.Use(zrLogger.HttpLogger())
 }
 ```
