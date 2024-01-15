@@ -1,7 +1,6 @@
 package zrLogger
 
 import (
-	"NAS/authentication/model"
 	"bytes"
 	"encoding/json"
 	"fmt"
