@@ -9,9 +9,9 @@
 func main() {
   // 初始化
   zrLogger.InitLogger("LogFile/test.log", 1024, 5, 30, false)
-  defer SugarLogger.Sync()
-  SugarLogger.Info("测试1")
-  SugarLogger.Error("测试2")
+  defer zrLogger.SugarLogger.Sync()
+  zrLogger.SugarLogger.Info("测试1")
+  zrLogger.SugarLogger.Error("测试2")
 
   //使用请求日志切面
   r := gin.Default()
