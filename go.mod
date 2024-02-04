@@ -1,4 +1,4 @@
-module awesomeProject1
+module zrLogger
 
 go 1.21.0
 
