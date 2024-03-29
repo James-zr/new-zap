@@ -39,11 +39,11 @@ func getEncoder() zapcore.Encoder {
 
 func getLogWriter(filename string, maxSize, maxBackups, maxAge int, compress bool) zapcore.WriteSyncer {
 	lumberJackLogger := &lumberjack.Logger{
-		Filename:   filename, //文件路径
-		MaxSize:    maxSize, //日志文件的最大存储量（单位MB），否则切割
+		Filename:   filename,   //文件路径
+		MaxSize:    maxSize,    //日志文件的最大存储量（单位MB），否则切割
 		MaxBackups: maxBackups, //最多保留的文件数量
-		MaxAge:     maxAge, //旧文件最多保存的天数
-		Compress:   compress, //是否压缩
+		MaxAge:     maxAge,     //旧文件最多保存的天数
+		Compress:   compress,   //是否压缩
 	}
 	return zapcore.AddSync(lumberJackLogger)
 }
@@ -55,6 +55,7 @@ func HttpLogger() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		method := c.Request.Method
 		var reqParams interface{}
+		var responseData string
 
 		// 处理请求前记录时间
 		start := time.Now()
@@ -68,7 +69,7 @@ func HttpLogger() gin.HandlerFunc {
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		// 创建响应记录器
-		recorder := NewResponseRecorder(c.Writer)
+		recorder := model.NewResponseRecorder(c.Writer)
 		c.Writer = recorder
 
 		// 处理请求
@@ -81,18 +82,23 @@ func HttpLogger() gin.HandlerFunc {
 			if err := json.Unmarshal(bodyBytes, &jsonMap); err == nil {
 				reqParams = jsonMap
 			}
+			responseData = recorder.Body.String()
 		case "application/x-www-form-urlencoded", "multipart/form-data":
 			reqParams = c.Request.Form
+			responseData = recorder.Body.String()
+		case "text/html", "application/octet-stream":
+			// 忽略记录Swagger文档HTML页面和二进制文件传输的响应
+			reqParams = "This is a static resource request, request params are not recorded."
+			responseData = "[BINARY DATA]"
 		default:
-			reqParams = nil //其他类型数据暂不做处理
+			reqParams = nil
+			responseData = "[NOT JSON RESPONSE]"
 		}
 
 		cost := time.Since(start)
 		clientIP := c.ClientIP()
 		// 获取 handler 名称
 		handlerName := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
-		// 获取响应数据
-		responseData := recorder.Body.String()
 
 		// 记录所有需要的信息
 		logInfo := fmt.Sprintf(
@@ -110,7 +116,6 @@ func HttpLogger() gin.HandlerFunc {
 			"\n---------------------------请求开始-----------------------------" +
 				logInfo +
 				"\n---------------------------请求结束-----------------------------",
-				)
+		)
 	}
 }
-
