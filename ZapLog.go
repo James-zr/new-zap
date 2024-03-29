@@ -69,7 +69,7 @@ func HttpLogger() gin.HandlerFunc {
 		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		// 创建响应记录器
-		recorder := model.NewResponseRecorder(c.Writer)
+		recorder := NewResponseRecorder(c.Writer)
 		c.Writer = recorder
 
 		// 处理请求
