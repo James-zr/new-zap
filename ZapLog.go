@@ -12,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -75,24 +76,36 @@ func HttpLogger() gin.HandlerFunc {
 		// 处理请求
 		c.Next()
 
-		// 请求的后置处理
 		switch c.ContentType() { // 根据 Content-Type 选择合适的方式来获取请求参数
 		case "application/json":
 			var jsonMap map[string]interface{}
 			if err := json.Unmarshal(bodyBytes, &jsonMap); err == nil {
 				reqParams = jsonMap
 			}
-			responseData = recorder.Body.String()
 		case "application/x-www-form-urlencoded", "multipart/form-data":
 			reqParams = c.Request.Form
+		default:
+			reqParams = nil //其他类型数据暂不做处理
+		}
+
+		respContentType := recorder.ResponseWriter.Header().Get("Content-Type")
+		// 解析 Content-Type，移除可选参数
+		contentTypeWithoutParams := strings.SplitN(respContentType, ";", 2)[0]
+
+		// 请求的后置处理
+		switch contentTypeWithoutParams {
+		case "application/json":
+			// 处理所有JSON类型的响应，忽略字符集
+			responseData = recorder.Body.String()
+		case "application/x-www-form-urlencoded", "multipart/form-data":
+			// 处理form类型的响应
 			responseData = recorder.Body.String()
 		case "audio/mpeg", "text/html", "application/octet-stream":
-			// 忽略记录Swagger文档HTML页面和二进制文件传输的响应
-			reqParams = "This is a static resource request, request params are not recorded."
+			// 忽略记录静态资源或二进制数据的响应
 			responseData = "[BINARY DATA]"
 		default:
-			reqParams = nil
-			responseData = recorder.Body.String()
+			// 对于未受支持的 Content-Type，不记录详细的请求参数或响应数据
+			responseData = "[UNSUPPORTED CONTENT TYPE]"
 		}
 
 		cost := time.Since(start)
