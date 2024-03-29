@@ -86,13 +86,13 @@ func HttpLogger() gin.HandlerFunc {
 		case "application/x-www-form-urlencoded", "multipart/form-data":
 			reqParams = c.Request.Form
 			responseData = recorder.Body.String()
-		case "text/html", "application/octet-stream":
+		case "audio/mpeg", "text/html", "application/octet-stream":
 			// 忽略记录Swagger文档HTML页面和二进制文件传输的响应
 			reqParams = "This is a static resource request, request params are not recorded."
 			responseData = "[BINARY DATA]"
 		default:
 			reqParams = nil
-			responseData = "[NOT JSON RESPONSE]"
+			responseData = recorder.Body.String()
 		}
 
 		cost := time.Since(start)
