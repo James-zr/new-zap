@@ -101,7 +101,7 @@ func HttpLogger() gin.HandlerFunc {
 			// 处理form类型的响应
 			responseData = recorder.Body.String()
 		case "image/jpeg", "image/png", "image/bmp", "image/gif":
-			// 忽略记录静态资源或二进制数据的响应
+			// 忽略记录图片数据的响应
 			responseData = "[IMAGE DATA]"
 		case "audio/mpeg", "text/html", "application/octet-stream":
 			// 忽略记录静态资源或二进制数据的响应
