@@ -46,6 +46,10 @@ func getLogWriter(filename string, maxSize, maxBackups, maxAge int, compress boo
 		MaxAge:     maxAge,     //旧文件最多保存的天数
 		Compress:   compress,   //是否压缩
 	}
+
+	// 设置文件权限为755
+	os.Chmod(filename, 0755)
+	
 	return zapcore.AddSync(lumberJackLogger)
 }
 
