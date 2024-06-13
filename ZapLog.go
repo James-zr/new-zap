@@ -8,6 +8,7 @@ import (
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -47,9 +48,6 @@ func getLogWriter(filename string, maxSize, maxBackups, maxAge int, compress boo
 		Compress:   compress,   //是否压缩
 	}
 
-	// 设置文件权限为755
-	os.Chmod(filename, 0755)
-	
 	return zapcore.AddSync(lumberJackLogger)
 }
 
@@ -65,13 +63,29 @@ func HttpLogger() gin.HandlerFunc {
 		// 处理请求前记录时间
 		start := time.Now()
 
-		// 读取请求体
-		var bodyBytes []byte
-		if c.Request.Body != nil {
-			bodyBytes, _ = ioutil.ReadAll(c.Request.Body)
+		switch c.GetHeader("Content-Type") { // 根据 Content-Type 选择合适的方式来获取请求参数
+		case "application/json":
+			bodyBytes, err := io.ReadAll(c.Request.Body)
+			if err != nil {
+				// 处理读取失败的情况
+				SugarLogger.Errorf("无法读取请求体：%v", err)
+				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(nil))
+			} else {
+				// 如果读取成功，则只解析 JSON 请求体
+				var jsonMap map[string]interface{}
+				if err = json.Unmarshal(bodyBytes, &jsonMap); err == nil {
+					reqParams = jsonMap
+				} else {
+					SugarLogger.Errorf("无法解析 JSON 请求体: %v", err)
+				}
+				// 重新设置 Body，以供后续中间件或处理函数使用
+				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+			}
+		case "application/x-www-form-urlencoded", "multipart/form-data":
+			reqParams = c.Request.Form
+		default:
+			reqParams = nil //其他类型数据暂不做处理
 		}
-		// 将读取过的请求体重新放入请求中
-		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		// 创建响应记录器
 		recorder := NewResponseRecorder(c.Writer)
@@ -79,18 +93,6 @@ func HttpLogger() gin.HandlerFunc {
 
 		// 处理请求
 		c.Next()
-
-		switch c.ContentType() { // 根据 Content-Type 选择合适的方式来获取请求参数
-		case "application/json":
-			var jsonMap map[string]interface{}
-			if err := json.Unmarshal(bodyBytes, &jsonMap); err == nil {
-				reqParams = jsonMap
-			}
-		case "application/x-www-form-urlencoded", "multipart/form-data":
-			reqParams = c.Request.Form
-		default:
-			reqParams = nil //其他类型数据暂不做处理
-		}
 
 		respContentType := recorder.ResponseWriter.Header().Get("Content-Type")
 		// 解析 Content-Type，移除可选参数
@@ -104,9 +106,6 @@ func HttpLogger() gin.HandlerFunc {
 		case "application/x-www-form-urlencoded", "multipart/form-data":
 			// 处理form类型的响应
 			responseData = recorder.Body.String()
-		case "image/jpeg", "image/png", "image/bmp", "image/gif":
-			// 忽略记录图片数据的响应
-			responseData = "[IMAGE DATA]"
 		case "audio/mpeg", "text/html", "application/octet-stream":
 			// 忽略记录静态资源或二进制数据的响应
 			responseData = "[BINARY DATA]"
