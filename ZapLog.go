@@ -102,7 +102,13 @@ func HttpLogger() gin.HandlerFunc {
 		switch contentTypeWithoutParams {
 		case "application/json":
 			// 处理所有JSON类型的响应，忽略字符集
-			responseData = recorder.Body.String()
+			var prettyJSON bytes.Buffer
+			if err := json.Indent(&prettyJSON, recorder.Body.Bytes(), "", "    "); err == nil {
+				responseData = prettyJSON.String()
+			} else {
+				// 如果 JSON 格式化出错则保持原样
+				responseData = recorder.Body.String()
+			}
 		case "application/x-www-form-urlencoded", "multipart/form-data":
 			// 处理form类型的响应
 			responseData = recorder.Body.String()
