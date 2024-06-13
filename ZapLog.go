@@ -68,15 +68,12 @@ func HttpLogger() gin.HandlerFunc {
 			bodyBytes, err := io.ReadAll(c.Request.Body)
 			if err != nil {
 				// 处理读取失败的情况
-				SugarLogger.Errorf("无法读取请求体：%v", err)
 				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(nil))
 			} else {
 				// 如果读取成功，则只解析 JSON 请求体
 				var jsonMap map[string]interface{}
 				if err = json.Unmarshal(bodyBytes, &jsonMap); err == nil {
 					reqParams = jsonMap
-				} else {
-					SugarLogger.Errorf("无法解析 JSON 请求体: %v", err)
 				}
 				// 重新设置 Body，以供后续中间件或处理函数使用
 				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
