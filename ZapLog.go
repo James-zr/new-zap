@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -20,6 +21,11 @@ import (
 var SugarLogger *zap.SugaredLogger
 
 func InitLogger(filename string, maxSize, maxBackups, maxAge int, compress bool) {
+	// 确保目录存在且具有正确的权限
+	if err := ensureDir(filename); err != nil {
+		SugarLogger.Errorf("日志文件创建失败: %v", err)
+	}
+	
 	writeSyncer := getLogWriter(filename, maxSize, maxBackups, maxAge, compress)
 	consoleWriteSyncer := zapcore.AddSync(os.Stdout)
 	encoder := getEncoder()
@@ -30,6 +36,14 @@ func InitLogger(filename string, maxSize, maxBackups, maxAge int, compress bool)
 	)
 	logger := zap.New(core, zap.AddCaller())
 	SugarLogger = logger.Sugar()
+}
+
+func ensureDir(filePath string) error {
+	dir := path.Dir(filePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return os.MkdirAll(dir, 0755)
+	}
+	return nil
 }
 
 func getEncoder() zapcore.Encoder {
