@@ -68,59 +68,51 @@ func getLogWriter(filename string, maxSize, maxBackups, maxAge int, compress boo
 // HttpLogger 请求日志切面
 func HttpLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 获取请求地址和方法
-		path := c.Request.URL.Path
-		method := c.Request.Method
-		var reqParams interface{}
-		var responseData string
-
-		// 处理请求前记录时间
+		// 开始计时
 		start := time.Now()
 
-		switch c.GetHeader("Content-Type") { // 根据 Content-Type 选择合适的方式来获取请求参数
+		// 捕获请求地址、方法、IP
+		httpPath, method, clientIP := c.Request.URL.Path, c.Request.Method, c.ClientIP()
+
+		// 解析请求参数
+		var reqParams interface{}
+		switch c.GetHeader("Content-Type") {
 		case "application/json":
-			bodyBytes, err := io.ReadAll(c.Request.Body)
-			if err != nil {
-				// 处理读取失败的情况
-				SugarLogger.Errorf("无法读取请求体：%v", err)
-				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(nil))
-			} else {
-				// 如果读取成功，则只解析 JSON 请求体
-				var jsonMap map[string]interface{}
-				if err = json.Unmarshal(bodyBytes, &jsonMap); err == nil {
-					reqParams = jsonMap
-				} else {
-					SugarLogger.Errorf("无法解析 JSON 请求体：%v", err)
+			bodyBytes, _ := io.ReadAll(c.Request.Body)
+			if len(bodyBytes) > 0 {
+				var m map[string]interface{}
+				if err := json.Unmarshal(bodyBytes, &m); err == nil {
+					reqParams = m
 				}
-				// 重新设置 Body，以供后续中间件或处理函数使用
-				c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 			}
+			// 恢复 Body
+			c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 		case "application/x-www-form-urlencoded", "multipart/form-data":
+			_ = c.Request.ParseForm()
 			reqParams = c.Request.Form
 		default:
-			reqParams = nil //其他类型数据暂不做处理
+			reqParams = "" // 其他类型不记录
 		}
 
-		// 创建响应记录器
+		// 设置响应记录器
 		recorder := NewResponseRecorder(c.Writer)
 		c.Writer = recorder
 
-		// 处理请求
+		// 调用后续处理
 		c.Next()
 
-		respContentType := recorder.ResponseWriter.Header().Get("Content-Type")
-		// 解析 Content-Type，移除可选参数
-		contentTypeWithoutParams := strings.SplitN(respContentType, ";", 2)[0]
+		// 获取状态码
+		statusCode := recorder.Status()
 
-		// 请求的后置处理
-		switch contentTypeWithoutParams {
+		// 解析响应数据
+		respCT := strings.SplitN(recorder.Header().Get("Content-Type"), ";", 2)[0]
+		var responseData string
+		switch respCT {
 		case "application/json":
-			// 处理所有JSON类型的响应，忽略字符集
-			var prettyJSON bytes.Buffer
-			if err := json.Indent(&prettyJSON, recorder.Body.Bytes(), "", "    "); err == nil {
-				responseData = prettyJSON.String()
+			var buf bytes.Buffer
+			if err := json.Indent(&buf, recorder.Body.Bytes(), "", "    "); err == nil {
+				responseData = buf.String()
 			} else {
-				// 如果 JSON 格式化出错则保持原样
 				responseData = recorder.Body.String()
 			}
 		case "application/x-www-form-urlencoded", "multipart/form-data":
@@ -135,20 +127,17 @@ func HttpLogger() gin.HandlerFunc {
 		}
 
 		cost := time.Since(start)
-		clientIP := c.ClientIP()
-		// 获取 handler 名称
 		handlerName := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
-
-		// 记录所有需要的信息
 		logInfo := fmt.Sprintf(
 			"\nCLASS METHOD: %s"+
 				"\n请求地址: %s"+
-				"\n请求参数: %s"+
 				"\nHTTP METHOD: %s"+
+				"\n请求参数: %v"+ // %v 安全处理 nil、map、结构体
 				"\nIP: %s"+
+				"\n状态码: %d"+ // 新增状态码
 				"\n响应数据: %s"+
 				"\n耗时: %v",
-			handlerName, path, reqParams, method, clientIP, responseData, cost,
+			handlerName, httpPath, method, reqParams, clientIP, statusCode, responseData, cost,
 		)
 
 		SugarLogger.Info(
